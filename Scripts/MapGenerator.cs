@@ -17,6 +17,8 @@ public class MapGenerator : MonoBehaviour {
 	public NoiseData noiseData;
 	public FloraData floraData;
 	public TextureData textureData;
+	public FloraModels floraModels;
+	public FloraMaterials floraMaterials;
 	public Material terrainMaterial;
 	public bool randomNoiseMesh;
 	public bool randomNoiseFlora;
@@ -41,17 +43,47 @@ public class MapGenerator : MonoBehaviour {
 		MapData mapData = GenerateMapData (Vector2.zero);
 		MapDisplay display = FindObjectOfType<MapDisplay> ();
 
+		AnimationCurve heightCurve = new AnimationCurve(noiseData.meshHeightCurve.keys);
+		int meshSimplificationIncrement = (levelOfDetail == 0) ? 1 : levelOfDetail * 2;
+		int borderedSize = mapData.heightMap.GetLength(0);
+		int meshSize = borderedSize - 2 * meshSimplificationIncrement;
+		int meshSizeUnsimplified = borderedSize - 2;
+		float topLeftX = (meshSizeUnsimplified - 1) / -2f;
+		float topLeftZ = (meshSizeUnsimplified - 1) / 2f;
+		int verticesPerLine = (meshSize - 1) / meshSimplificationIncrement + 1;
+		int[,] vertexIndicesMap = new int[borderedSize, borderedSize];
+		int meshVertexIndex = 0;
+		int borderVertexIndex = -1;
+		for (int y = 0; y < borderedSize; y += meshSimplificationIncrement)
+		{
+			for (int x = 0; x < borderedSize; x += meshSimplificationIncrement)
+			{
+				bool isBorderVertex = y == 0 || y == borderedSize - 1 || x == 0 || x == borderedSize - 1;
+
+				if (isBorderVertex)
+				{
+					vertexIndicesMap[x, y] = borderVertexIndex;
+					borderVertexIndex--;
+				}
+				else
+				{
+					vertexIndicesMap[x, y] = meshVertexIndex;
+					meshVertexIndex++;
+				}
+			}
+		}
+
 		if (drawMode == DrawMode.NoiseMap)
 		{
 			display.DrawTexture (TextureGenerator.TextureFromHeightMap (mapData.heightMap));
 		}
 		else if (drawMode == DrawMode.Mesh)
 		{
-			display.DrawMesh (MeshGenerator.GenerateTerrainMesh (mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading));
+			display.DrawMesh (MeshGenerator.GenerateTerrainMesh(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.useFlatShading, verticesPerLine, borderedSize, meshSimplificationIncrement, vertexIndicesMap, heightCurve, topLeftX, topLeftZ, meshSize, meshSizeUnsimplified));
 		}
 		else if (drawMode == DrawMode.MeshAndFlora)
 		{
-			display.DrawMesh(MeshAndFloraGenerator.GenerateTerrainMeshAndFlora(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading, floraData.floraModels, mapData.noiseMapFlora, floraData.heightOfFlora, floraData.densityOfFlora, mapData.noiseMapForTypes, mapData.noiseMapForDensityOfFlora, floraData.percentageOfForest, noiseData.uniformScale, floraData.sizeOfModels, floraData.maxBushes));
+			display.DrawMesh(MeshAndFloraGenerator.GenerateTerrainMeshAndFlora(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading, verticesPerLine, borderedSize, meshSimplificationIncrement, vertexIndicesMap, heightCurve, topLeftX, topLeftZ, meshSize, meshSizeUnsimplified, floraModels.floraModels, mapData.noiseMapFlora, floraData.heightOfFlora, floraData.densityOfFlora, mapData.noiseMapForTypes, mapData.noiseMapForDensityOfFlora, floraData.percentageOfForest, noiseData.uniformScale, floraData.sizeOfModels, floraData.maxBushes, floraMaterials));
 		}
 	}
 
@@ -73,19 +105,6 @@ public class MapGenerator : MonoBehaviour {
 		{
 			floraData.seedForDensityOfFlora = floraData.seedFlora + UnityEngine.Random.Range(1, 999);
 		}
-		/*
-		//Фикс для одиннаковых сидов флоры и меша.
-		if (noiseData.seed == floraData.seedFlora)
-        {
-			floraData.seedFlora = noiseData.seed + UnityEngine.Random.Range(1, 999);
-		}	
-		//Фикс для одиннаковых сидов флоры и типов флоры.
-		if (floraData.seedFlora == floraData.seedForTypes)
-        {
-			floraData.seedForTypes = floraData.seedFlora + UnityEngine.Random.Range(1, 999);
-		}
-		*/
-
 		float[,] noiseMap = Noise.GenerateNoiseMap (mapChunkSize[chunkSizeIndex] + 2, mapChunkSize[chunkSizeIndex] + 2, noiseData.seed, noiseData.noiseScale, noiseData.octaves, noiseData.persistance, noiseData.lacunarity, centre + noiseData.offset, noiseData.normalizeMode, noiseData.falloff, noiseData.sizeFalloff, noiseData.multy);
 		float[,] noiseMapFlora = Noise.GenerateNoiseMap(mapChunkSize[chunkSizeIndex] + 2, mapChunkSize[chunkSizeIndex] + 2, floraData.seedFlora, floraData.noiseScale.Flora, noiseData.octaves, noiseData.persistance, noiseData.lacunarity, centre + noiseData.offset, noiseData.normalizeMode, noiseData.falloff, noiseData.sizeFalloff, noiseData.multy);
 		float[,] noiseMapForTypes = Noise.GenerateNoiseMap(mapChunkSize[chunkSizeIndex] + 2, mapChunkSize[chunkSizeIndex] + 2, floraData.seedForTypes, floraData.noiseScale.Types, noiseData.octaves, noiseData.persistance, noiseData.lacunarity, centre + noiseData.offset, noiseData.normalizeMode, noiseData.falloff, noiseData.sizeFalloff, noiseData.multy);

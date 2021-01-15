@@ -21,6 +21,5 @@ public class MapDisplay : MonoBehaviour
 		meshFilter.sharedMesh = meshData.CreateMesh();
 		meshCollider.sharedMesh = meshFilter.sharedMesh;
 		meshObject.transform.position = new Vector3(0, 0, 0);
-		//meshFilter.transform.localScale = Vector3.one * FindObjectOfType<MapGenerator>().noiseData.uniformScale;
 	}
 }

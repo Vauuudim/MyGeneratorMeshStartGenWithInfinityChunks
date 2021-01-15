@@ -14,6 +14,8 @@ public class InfinityTerrain : MonoBehaviour
 	public NoiseData noiseData;
 	public FloraData floraData;
 	public TextureData textureData;
+	public FloraModels floraModels;
+	public FloraMaterials floraMaterials;
 	public Material terrainMaterial;
 	
 	public bool randomNoiseMesh;
@@ -99,7 +101,7 @@ public class InfinityTerrain : MonoBehaviour
 				}
 				else
 				{
-					terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize[chunkSizeIndex], transform, noiseData, floraData, textureData, terrainMaterial, levelOfDetail, chunksParent, viewDistance, drawMode, water, waterObject)) ;
+					terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize[chunkSizeIndex], transform, noiseData, floraData, textureData, terrainMaterial, levelOfDetail, chunksParent, viewDistance, drawMode, water, waterObject,floraModels, floraMaterials)) ;
 				}
 
 			}
@@ -118,7 +120,7 @@ public class InfinityTerrain : MonoBehaviour
 		Material terrainMaterial;
 		int chunkSize;
 		float maxViewDst;
-		public TerrainChunk(Vector2 coord, int size, Transform parent, NoiseData noiseData, FloraData floraData, TextureData textureData, Material terrainMaterial, int levelOfDetail, GameObject chunks, float maxViewDst, DrawMode drawMode, bool water, GameObject waterObject)
+		public TerrainChunk(Vector2 coord, int size, Transform parent, NoiseData noiseData, FloraData floraData, TextureData textureData, Material terrainMaterial, int levelOfDetail, GameObject chunks, float maxViewDst, DrawMode drawMode, bool water, GameObject waterObject, FloraModels floraModels, FloraMaterials floraMaterials)
 		{
 			this.noiseData = noiseData;
 			this.floraData = floraData;
@@ -139,10 +141,40 @@ public class InfinityTerrain : MonoBehaviour
 			MapData mapData = GenerateMapData(new Vector2(position.x, position.y));
 			//MapDisplay display = FindObjectOfType<MapDisplay>();
 			MeshData meshData;
-			
+
+			AnimationCurve heightCurve = new AnimationCurve(noiseData.meshHeightCurve.keys);
+			int meshSimplificationIncrement = (levelOfDetail == 0) ? 1 : levelOfDetail * 2;
+			int borderedSize = mapData.heightMap.GetLength(0);
+			int meshSize = borderedSize - 2 * meshSimplificationIncrement;
+			int meshSizeUnsimplified = borderedSize - 2;
+			float topLeftX = (meshSizeUnsimplified - 1) / -2f;
+			float topLeftZ = (meshSizeUnsimplified - 1) / 2f;
+			int verticesPerLine = (meshSize - 1) / meshSimplificationIncrement + 1;
+			int[,] vertexIndicesMap = new int[borderedSize, borderedSize];
+			int meshVertexIndex = 0;
+			int borderVertexIndex = -1;
+			for (int y = 0; y < borderedSize; y += meshSimplificationIncrement)
+			{
+				for (int x = 0; x < borderedSize; x += meshSimplificationIncrement)
+				{
+					bool isBorderVertex = y == 0 || y == borderedSize - 1 || x == 0 || x == borderedSize - 1;
+
+					if (isBorderVertex)
+					{
+						vertexIndicesMap[x, y] = borderVertexIndex;
+						borderVertexIndex--;
+					}
+					else
+					{
+						vertexIndicesMap[x, y] = meshVertexIndex;
+						meshVertexIndex++;
+					}
+				}
+			}
+
 			if (drawMode == DrawMode.Mesh)
 			{
-				meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading);
+				meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.useFlatShading, verticesPerLine, borderedSize, meshSimplificationIncrement, vertexIndicesMap, heightCurve, topLeftX, topLeftZ, meshSize, meshSizeUnsimplified);
 				if (water == true)
 				{
 					GameObject waterPlane = GameObject.Instantiate(waterObject, new Vector3(0, 10.5f, 0), Quaternion.identity) as GameObject;
@@ -153,8 +185,8 @@ public class InfinityTerrain : MonoBehaviour
 			}
 			else
 			{
-				meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading);
-                flora = FloraGenerator.GenerateFlora(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.meshHeightCurve, levelOfDetail, noiseData.useFlatShading, floraData.floraModels, mapData.noiseMapFlora, floraData.heightOfFlora, floraData.densityOfFlora, mapData.noiseMapForTypes, mapData.noiseMapForDensityOfFlora, floraData.percentageOfForest, noiseData.uniformScale, floraData.sizeOfModels, floraData.maxBushes);
+				meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, noiseData.meshHeightMultiplier, noiseData.useFlatShading, verticesPerLine, borderedSize, meshSimplificationIncrement, vertexIndicesMap, heightCurve, topLeftX, topLeftZ, meshSize, meshSizeUnsimplified);
+				flora = FloraGenerator.GenerateFlora(mapData.heightMap, noiseData.meshHeightMultiplier, heightCurve, levelOfDetail, noiseData.useFlatShading, borderedSize, meshSimplificationIncrement, vertexIndicesMap, topLeftX, topLeftZ, meshSize, meshSizeUnsimplified, floraModels.floraModels, mapData.noiseMapFlora, floraData.heightOfFlora, floraData.densityOfFlora, mapData.noiseMapForTypes, mapData.noiseMapForDensityOfFlora, floraData.percentageOfForest, noiseData.uniformScale, floraData.sizeOfModels, floraData.maxBushes, floraMaterials);
 				flora.transform.SetParent(chunk.transform);
 				flora.isStatic = true;
 				if (water == true)
@@ -165,9 +197,6 @@ public class InfinityTerrain : MonoBehaviour
 					waterPlane.isStatic = true;
 				}
 			}
-
-
-
 			meshObject.transform.SetParent(chunk.transform);
 			MeshRenderer meshRenderer = meshObject.AddComponent<MeshRenderer>();
 			MeshFilter meshFilter = meshObject.AddComponent<MeshFilter>();
@@ -178,9 +207,6 @@ public class InfinityTerrain : MonoBehaviour
 			meshFilter.transform.localScale = Vector3.one * noiseData.uniformScale;
 			chunk.transform.SetParent(chunks.transform);
 			chunk.transform.position = new Vector3(position.x, 0, position.y);
-
-			
-
 
 			SetVisible(false);
 		}

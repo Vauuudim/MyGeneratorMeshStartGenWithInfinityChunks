@@ -8,16 +8,14 @@ public class FloraData : UpdatableData
 	public int seedForTypes;
 	public int seedForDensityOfFlora;
 
-	public NoiseScale noiseScale;
-
 	[Range(0, 1)]
 	public float percentageOfForest = 0.1f;
 	[Range(0, 10)]
 	public int maxBushes = 1;
 
+	public NoiseScale noiseScale;
 	public HeightOfFlora heightOfFlora;
 	public DensityOfFlora densityOfFlora;
-	public ModelsOfFlora floraModels;
 	public SizeOfModels sizeOfModels;
 }
 
@@ -62,23 +60,6 @@ public struct DensityOfFlora
 	public float Rare;
 }
 
-
-[System.Serializable]
-public struct ModelsOfFlora
-{
-	public GameObject[] Underwater;	//Водоросли
-	public GameObject[] TreesT1;	//Деревья типа 1
-	public GameObject[] TreesT1R;	//Деревья типа 1 редкие
-	public GameObject[] TreesT2;	//Деревья типа 2
-	public GameObject[] TreesT2R;	//Деревья типа 2 редкие
-	public GameObject[] TreesT1W;	//Деревья типа 1 зимние
-	public GameObject[] TreesT1WR;	//Деревья типа 1 зимние редкие
-	public GameObject[] TreesT2W;	//Деревья типа 2 зимние
-	public GameObject[] TreesT2WR;	//Деревья типа 2 зимние редкие
-	public GameObject[] Grass;		//Трава
-	public GameObject[] Bushes;		//Кусты
-}
-
 [System.Serializable]
 public struct SizeOfModels
 {
@@ -89,5 +70,5 @@ public struct SizeOfModels
 	[Range(0.1f, 5f)]
 	public float Grass;
 	[Range(0.1f, 5f)]
-	public float Buches;
+	public float Bushes;
 }
