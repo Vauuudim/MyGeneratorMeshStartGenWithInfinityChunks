@@ -107,7 +107,7 @@ public static class Noise
 	}
 	static float Evaluate(float value, float sizeFalloff)
 	{
-		float sizeFalloff2 = 3;
+		int sizeFalloff2 = 1;
 		return Mathf.Pow(value, sizeFalloff2) / (Mathf.Pow(value, sizeFalloff2) + Mathf.Pow(sizeFalloff - sizeFalloff * value, sizeFalloff2));
 	}
 }
