@@ -6,19 +6,14 @@ public static class FloraGenerator
 {
 	public static GameObject GenerateFlora(float[,] heightMap, float heightMultiplier, AnimationCurve heightCurve, int levelOfDetail, bool useFlatShading, int borderedSize, int meshSimplificationIncrement, int[,] vertexIndicesMap,  float topLeftX, float topLeftZ, int meshSize, int meshSizeUnsimplified, ModelsOfFlora floraModels, float[,] noiseMapFlora, HeightOfFlora heightOfFlora, DensityOfFlora densityOfFlora, float[,] noiseMapForTypes, float[,] noiseMapForDensityOfFlora, float percentageOfForest, float uniformScale, SizeOfModels sizeOfModels, int maxBushes, FloraMaterials floraMaterials)
 	{
-		GameObject inst_objParent = new GameObject("Flora");
-		inst_objParent.transform.position = new Vector3(0, 0, 0);
-		inst_objParent.isStatic = true;
-		GameObject grass = new GameObject("Grass");
-		inst_objParent.transform.position = new Vector3(0, 0, 0);
-		grass.transform.SetParent(inst_objParent.transform);
-		grass.AddComponent<MeshFilter>();
-		grass.AddComponent<MeshRenderer>();
-		grass.isStatic = true;
-		int meshCombainCount = 0;
-		int countMeshFilters = 70;
-		MeshFilter[] meshFilters = new MeshFilter[countMeshFilters];
+		GameObject floraParent = new GameObject("Flora");
+		floraParent.transform.position = new Vector3(0, 0, 0);
+		floraParent.isStatic = true;
 
+		GameObject grass = CreateGameObject("Grass", floraParent);
+		int meshCombineCount = 0;
+		int countMeshFilters = Mathf.FloorToInt(65535 / floraModels.Grass[0].GetComponent<MeshFilter>().sharedMesh.vertexCount);
+		MeshFilter[] meshFilters = new MeshFilter[countMeshFilters];
 		for (int y = 0; y < borderedSize; y += meshSimplificationIncrement)
 		{
 			for (int x = 0; x < borderedSize; x += meshSimplificationIncrement)
@@ -29,7 +24,7 @@ public static class FloraGenerator
 				//UNDER WATER
 				if (floraModels.Underwater.Length != 0 && heightMap[x, y] <= heightOfFlora.Underwater && Random.Range(0, 100) <= densityOfFlora.Underwater * noiseMapForDensityOfFlora[x, y])
 				{
-					InstFlora(vertexPosition, floraModels.Underwater[0 + Random.Range(0, floraModels.Underwater.Length)], uniformScale, sizeOfModels.Seaweed, inst_objParent);
+					InstFlora(vertexPosition, floraModels.Underwater[0 + Random.Range(0, floraModels.Underwater.Length)], uniformScale, sizeOfModels.Seaweed, floraParent);
 				}
 				//OVER THE BEACH
 				else if (heightMap[x, y] >= heightOfFlora.Beach && heightMap[x, y] <= heightOfFlora.Ground)
@@ -37,114 +32,114 @@ public static class FloraGenerator
 					//GRASS
 					if (floraModels.Grass.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Grass)
 					{
-						GameObject inst_obj = InstFlora(vertexPosition, floraModels.Grass[0 + Random.Range(0, floraModels.Grass.Length)], uniformScale, sizeOfModels.Grass, grass);
-						
-						//Mesh of grass combining (FPS*2.5, Butches/4)
-						meshFilters[meshCombainCount] = inst_obj.GetComponent<MeshFilter>();
-						meshCombainCount++;
-						if (meshCombainCount == countMeshFilters || (y == borderedSize - 1 && x == borderedSize - 1))
+						GameObject gr = InstFlora(vertexPosition, floraModels.Grass[0 + Random.Range(0, floraModels.Grass.Length)], uniformScale, sizeOfModels.Grass, grass);
+						meshFilters[meshCombineCount] = gr.GetComponent<MeshFilter>();
+						meshCombineCount++;
+						if (meshCombineCount == countMeshFilters || x == borderedSize - 1)
 						{
-							CombineInstance[] combine = new CombineInstance[meshCombainCount];
-							for (int i = 0; i < meshCombainCount; i++)
-							{
-								combine[i].mesh = meshFilters[i].sharedMesh;
-								combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
-								meshFilters[i].gameObject.SetActive(false);
-							}
-							grass.GetComponent<MeshRenderer>().material = floraMaterials.floraMaterials.Grass;
-							grass.transform.GetComponent<MeshFilter>().mesh = new Mesh();
-							grass.transform.GetComponent<MeshFilter>().sharedMesh.CombineMeshes(combine);
-							grass.transform.gameObject.SetActive(true);
-
-							grass = new GameObject("Grass");
-							grass.AddComponent<MeshFilter>();
-							grass.AddComponent<MeshRenderer>();
-							inst_objParent.transform.position = new Vector3(0, 0, 0);
-							grass.transform.SetParent(inst_objParent.transform);
-							meshCombainCount = 0;
-							grass.isStatic = true;
+							MeshCombining(grass, meshCombineCount, meshFilters, floraMaterials.floraMaterials.Grass);
+							grass = CreateGameObject("Grass", floraParent);
+							meshCombineCount = 0;
 						}
-					}
-					else if (meshCombainCount != 0 && y == borderedSize - 1 && x == borderedSize - 1)
-					{
-						CombineInstance[] combine = new CombineInstance[meshCombainCount];
-						for (int i = 0; i < meshCombainCount; i++)
-						{
-							combine[i].mesh = meshFilters[i].sharedMesh;
-							combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
-							meshFilters[i].gameObject.SetActive(false);
-						}
-						grass.GetComponent<MeshRenderer>().material = floraMaterials.floraMaterials.Grass;
-						grass.transform.GetComponent<MeshFilter>().mesh = new Mesh();
-						grass.transform.GetComponent<MeshFilter>().sharedMesh.CombineMeshes(combine);
-						grass.transform.gameObject.SetActive(true);
 					}
 					//T1
 					if (floraModels.TreesT1.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Ground * noiseMapForDensityOfFlora[x, y] && noiseMapForTypes[x, y] < 0.5f && noiseMapFlora[x, y] < percentageOfForest)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT1[0 + Random.Range(0, floraModels.TreesT1.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT1[0 + Random.Range(0, floraModels.TreesT1.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 						for (int i = 0; i < Random.Range(1, maxBushes); i++)
 						{
 							if (floraModels.Bushes.Length != 0 && Random.Range(0, 100) <= densityOfFlora.Bushes)
 							{
-								InstFlora(vertexPosition, floraModels.Bushes[0 + Random.Range(0, floraModels.Bushes.Length)], uniformScale, sizeOfModels.Bushes, inst_objParent);
+								InstFlora(vertexPosition, floraModels.Bushes[0 + Random.Range(0, floraModels.Bushes.Length)], uniformScale, sizeOfModels.Bushes, floraParent);
 							}
 						}
 					}
 					else if (floraModels.TreesT1R.Length != 0 && Random.Range(1, 100) <= noiseMapForDensityOfFlora[x, y] * densityOfFlora.Rare && noiseMapForTypes[x, y] < 0.5f && noiseMapFlora[x, y] < percentageOfForest)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT1R[0 + Random.Range(0, floraModels.TreesT1R.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT1R[0 + Random.Range(0, floraModels.TreesT1R.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
 					//T2
 					if (floraModels.TreesT2.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Ground * noiseMapForDensityOfFlora[x, y] && noiseMapForTypes[x, y] > 0.5f && noiseMapFlora[x, y] < percentageOfForest)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT2[0 + Random.Range(0, floraModels.TreesT2.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT2[0 + Random.Range(0, floraModels.TreesT2.Length)], uniformScale, sizeOfModels.Trees, floraParent);
+
 						for (int i = 0; i < Random.Range(1, maxBushes); i++)
 						{
 							if (floraModels.Bushes.Length != 0 && Random.Range(0, 100) <= densityOfFlora.Bushes)
 							{
-								InstFlora(vertexPosition, floraModels.Bushes[0 + Random.Range(0, floraModels.Bushes.Length)], uniformScale, sizeOfModels.Bushes, inst_objParent);
+								InstFlora(vertexPosition, floraModels.Bushes[0 + Random.Range(0, floraModels.Bushes.Length)], uniformScale, sizeOfModels.Bushes, floraParent);
 							}
 						}
 					}
 					else if (floraModels.TreesT2R.Length != 0 && Random.Range(1, 100) <= noiseMapForDensityOfFlora[x, y] * densityOfFlora.Rare && noiseMapForTypes[x, y] > 0.5f && noiseMapFlora[x, y] < percentageOfForest)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT2R[0 + Random.Range(0, floraModels.TreesT2R.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT2R[0 + Random.Range(0, floraModels.TreesT2R.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
 				}
-				//Â ÃÎÐÀÕ
-				else 
+				if (meshCombineCount != 0 && y == borderedSize - 1 && x == borderedSize - 1)
+				{
+					MeshCombining(grass, meshCombineCount, meshFilters, floraMaterials.floraMaterials.Grass);
+					meshCombineCount = 0;
+				}
+				//IN MOUNTAIN
+				else
 				{
 					//T1W
 					if (floraModels.TreesT1W.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Mountain * noiseMapForDensityOfFlora[x, y] && noiseMapForTypes[x, y] <= 0.5f)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT1W[0 + Random.Range(0, floraModels.TreesT1W.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT1W[0 + Random.Range(0, floraModels.TreesT1W.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
 					else if (floraModels.TreesT1WR.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Ground * noiseMapForDensityOfFlora[x, y] * 0.01f * densityOfFlora.Rare)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT1WR[0 + Random.Range(0, floraModels.TreesT1WR.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT1WR[0 + Random.Range(0, floraModels.TreesT1WR.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
+
 					//T2W
 					if (floraModels.TreesT2W.Length != 0 && heightMap[x, y] >= heightOfFlora.Ground && heightMap[x, y] <= heightOfFlora.Mountain && Random.Range(1, 100) <= densityOfFlora.Mountain * noiseMapForDensityOfFlora[x, y] && noiseMapForTypes[x, y] > 0.5f)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT2W[0 + Random.Range(0, floraModels.TreesT2W.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT2W[0 + Random.Range(0, floraModels.TreesT2W.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
 					else if (floraModels.TreesT2WR.Length != 0 && Random.Range(1, 100) <= densityOfFlora.Ground * noiseMapForDensityOfFlora[x, y] * 0.01f * densityOfFlora.Rare)
 					{
-						InstFlora(vertexPosition, floraModels.TreesT2WR[0 + Random.Range(0, floraModels.TreesT2WR.Length)], uniformScale, sizeOfModels.Trees, inst_objParent);
+						InstFlora(vertexPosition, floraModels.TreesT2WR[0 + Random.Range(0, floraModels.TreesT2WR.Length)], uniformScale, sizeOfModels.Trees, floraParent);
 					}
 				}
 			}
 		}
-		return inst_objParent;
+		return floraParent;
 	}
 
 	public static GameObject InstFlora(Vector3 vertexPosition, GameObject floraModel, float uniformScale, float sizeModel, GameObject parent)
 	{
-		Vector3 koords = (vertexPosition + new Vector3(Random.Range(0f, 0.4f), 0, Random.Range(0f, 0.4f))) * uniformScale;
+		Vector3 koords = (vertexPosition + new Vector3(Random.Range(-0.5f, 0.5f), 0, Random.Range(-0.5f, 0.5f))) * uniformScale;
 		GameObject inst_obj = GameObject.Instantiate(floraModel, koords, Quaternion.Euler(Random.Range(-4, 5), Random.Range(-360, 360), Random.Range(-4, 5)));
 		inst_obj.transform.localScale = new Vector3(sizeModel, sizeModel, sizeModel) * Random.Range(0.8f, 1.2f) * uniformScale;
 		inst_obj.transform.SetParent(parent.transform);
 		return inst_obj;
+	}
+
+	public static void MeshCombining(GameObject gameObject, int meshCombineCount, MeshFilter[] meshFilters, Material floraMaterial)
+	{
+		CombineInstance[] combine = new CombineInstance[meshCombineCount];
+		for (int i = 0; i < meshCombineCount; i++)
+		{
+			combine[i].mesh = meshFilters[i].sharedMesh;
+			combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
+			meshFilters[i].gameObject.SetActive(false);
+		}
+		gameObject.GetComponent<MeshRenderer>().material = floraMaterial;
+		gameObject.transform.GetComponent<MeshFilter>().mesh = new Mesh();
+		gameObject.transform.GetComponent<MeshFilter>().sharedMesh.CombineMeshes(combine);
+		gameObject.transform.gameObject.SetActive(true);
+	}
+	public static GameObject CreateGameObject(string nameGameObject, GameObject parent)
+	{
+		GameObject gameObject = new GameObject(nameGameObject);
+		gameObject.AddComponent<MeshFilter>();
+		gameObject.AddComponent<MeshRenderer>();
+		gameObject.transform.position = new Vector3(0, 0, 0);
+		gameObject.transform.SetParent(parent.transform);
+		gameObject.isStatic = true;
+		return gameObject;
 	}
 }
